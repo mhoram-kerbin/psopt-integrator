@@ -25,24 +25,22 @@ using System.Threading.Tasks;
 using UnityEngine;
 
 
-namespace PsoptIntegtrator
+namespace PsoptIntegrator
 {
     /// <summary>
     /// My first part!
     /// </summary>
-    public class PsoptIntegtrator : PartModule
+    public class PsoptIntegrator : PartModule
     {
         private bool window_live = false;
         private float next_update = 0.0f;
-        private Rect windowPos = new Rect(Screen.width / 2, Screen.height / 2, 800, 100);
+        private Rect windowPos = new Rect(Screen.width / 2, Screen.height / 4, 800, 100);
         private List<string> output = new List<string>();
         private List<float> stage_mass = new List<float>();
         private List<float> stage_resource_mass = new List<float>();
         private List<float> stage_thrustsum = new List<float>();
         private List<float> stage_thrustisp1atmsum = new List<float>();
         private List<float> stage_thrustispvacsum = new List<float>();
-
-        int last_stages;
 
         /// <summary>
         /// Called when the part is started by Unity.
@@ -52,6 +50,7 @@ namespace PsoptIntegtrator
             part.OnEditorAttach = oea;
             part.OnEditorDetach = oed;
             part.OnEditorDestroy = oede;
+            print ("OnStart PI");
         }
 
         public override void OnUpdate()
@@ -129,12 +128,12 @@ namespace PsoptIntegtrator
                     output.Insert(1 + st, "Stage " + st + " fuel mass = " + stage_resource_mass[st] + " mass = " + mass_sum + thrust + isp);
                 }
                 //output.Insert(stage_mass.Count + 1, "");
-                last_stages = stage_mass.Count;
             }
 
             foreach (string s in output)
             {
                 GUILayout.Label(s);
+                print (s);
             }
             GUILayout.EndVertical();
             GUI.DragWindow(new Rect(0, 0, 10000, 20));
