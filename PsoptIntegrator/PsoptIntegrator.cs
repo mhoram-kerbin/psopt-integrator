@@ -34,7 +34,7 @@ namespace PsoptIntegrator
     {
         private bool window_live = false;
         private float next_update = 0.0f;
-        private Rect windowPos = new Rect(Screen.width / 2, Screen.height / 4, 800, 100);
+        private Rect windowPos = new Rect(Screen.width / 2, Screen.height / 8, 800, 100);
         private List<string> output = new List<string>();
         private List<float> stage_mass = new List<float>();
         private List<float> stage_resource_mass = new List<float>();
@@ -42,23 +42,40 @@ namespace PsoptIntegrator
         private List<float> stage_thrustisp1atmsum = new List<float>();
         private List<float> stage_thrustispvacsum = new List<float>();
 
+        System.Text.RegularExpressions.Regex zero_mass_part_regex = new System.Text.RegularExpressions.Regex
+            ("^(?:FTX-2 External Fuel Duct|EAS-4 Strut Connector|Octagonal Strut|Cubic Octagonal Strut)$");
+
         /// <summary>
         /// Called when the part is started by Unity.
         /// </summary>
         public override void OnStart(StartState state)
         {
-            part.OnEditorAttach = oea;
-            part.OnEditorDetach = oed;
-            part.OnEditorDestroy = oede;
-            print ("OnStart PI");
+            if (HighLogic.LoadedSceneIsEditor)
+            {
+                part.OnEditorAttach = oea;
+                part.OnEditorDetach = oed;
+                part.OnEditorDestroy = oede;
+                print("OnStart PI in editor");
+                if (part.parent != null)
+                {
+                    oea();
+                }
+            }
+            else
+            {
+                print("OnStart PI not in editor");
+            }
         }
 
         public override void OnUpdate()
         {
-            if (Time.time >= next_update)
+            if (HighLogic.LoadedSceneIsEditor)
             {
-                next_update = Time.time + 1;
-                print("update");
+                if (Time.time >= next_update)
+                {
+                    next_update = Time.time + 1;
+                    print("update");
+                }
             }
         }
 
@@ -133,7 +150,7 @@ namespace PsoptIntegrator
             foreach (string s in output)
             {
                 GUILayout.Label(s);
-                print (s);
+                //print (s);
             }
             GUILayout.EndVertical();
             GUI.DragWindow(new Rect(0, 0, 10000, 20));
@@ -195,10 +212,19 @@ namespace PsoptIntegrator
                 stage_mass.Add(0);
                 stage_resource_mass.Add(0);
             }
-            //print("pre mass = " + stage_mass[stage_for_mass]);
-            stage_mass[stage_for_mass] += p.mass + p.GetResourceMass();
-            stage_resource_mass[stage_for_mass] += p.GetResourceMass(); // TODO: only take correct ressources
-            //print("post mass = " + stage_mass[stage_for_mass]);
+
+            if (!zero_mass_part_regex.IsMatch(p.partInfo.title))
+            {
+                //print("+ stage: " + stage_for_mass + " name: " + p.name + " partname: " + p.partName + " title: " + p.partInfo.title + " classname: " + p.ClassName + " mass: " + (p.mass + p.GetResourceMass()));
+
+                //print("pre mass = " + stage_mass[stage_for_mass]);
+                stage_resource_mass[stage_for_mass] += p.GetResourceMass();
+                stage_mass[stage_for_mass] += p.mass + stage_resource_mass[stage_for_mass];
+                //print("post mass = " + stage_mass[stage_for_mass]);
+            } else {
+                //print("- stage: " + stage_for_mass + " name: " + p.name + " partname: " + p.partName + " title: " + p.partInfo.title + " classname: " + p.ClassName + " mass: " + (p.mass + p.GetResourceMass()));
+            }
+
             foreach (Part child in p.children)
             {
                 UpdateParts(child, childrens_stage);
@@ -219,9 +245,6 @@ namespace PsoptIntegrator
                 RenderingManager.RemoveFromPostDrawQueue(3, new Callback(showWindow));
             }
         }
-
-
-
     }
 
 }
