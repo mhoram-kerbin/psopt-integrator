@@ -34,13 +34,16 @@ namespace PsoptIntegrator
     {
         private bool window_live = false;
         private float next_update = 0.0f;
-        private Rect windowPos = new Rect(Screen.width / 2, Screen.height / 8, 800, 100);
+        private Rect windowPos = new Rect(Screen.width / 2, Screen.height / 8, 500, 100);
         private List<string> output = new List<string>();
         private List<float> stage_mass = new List<float>();
         private List<float> stage_resource_mass = new List<float>();
         private List<float> stage_thrustsum = new List<float>();
         private List<float> stage_thrustisp1atmsum = new List<float>();
         private List<float> stage_thrustispvacsum = new List<float>();
+        private int lastEditorPartCount = -1;
+        private float editorUpdateInterval = 20;
+        private bool forcedUpdate = false;
 
         System.Text.RegularExpressions.Regex zero_mass_part_regex = new System.Text.RegularExpressions.Regex
             ("^(?:FTX-2 External Fuel Duct|EAS-4 Strut Connector|Octagonal Strut|Cubic Octagonal Strut)$");
@@ -50,7 +53,7 @@ namespace PsoptIntegrator
         /// </summary>
         public override void OnStart(StartState state)
         {
-            if (HighLogic.LoadedSceneIsEditor)
+            if (state == StartState.Editor)
             {
                 part.OnEditorAttach = oea;
                 part.OnEditorDetach = oed;
@@ -64,18 +67,6 @@ namespace PsoptIntegrator
             else
             {
                 print("OnStart PI not in editor");
-            }
-        }
-
-        public override void OnUpdate()
-        {
-            if (HighLogic.LoadedSceneIsEditor)
-            {
-                if (Time.time >= next_update)
-                {
-                    next_update = Time.time + 1;
-                    print("update");
-                }
             }
         }
 
@@ -103,7 +94,8 @@ namespace PsoptIntegrator
         private void showWindow()
         {
             GUI.skin = HighLogic.Skin;
-            windowPos = GUILayout.Window(1, windowPos, CreateWindowContents, "Stage Infos", GUILayout.MinWidth(100));
+            windowPos.height -= 2;
+            windowPos = GUILayout.Window(1, windowPos, CreateWindowContents, "Stage Infos");
             //print("in show");
 
         }
@@ -113,10 +105,14 @@ namespace PsoptIntegrator
             //print("in window creation");
             GUIStyle mySty = new GUIStyle(GUI.skin.button);
             GUILayout.BeginVertical();
-            if (Time.time >= next_update)
+
+            int ePC = EditorLogic.SortedShipList.Count;
+            if (ePC != lastEditorPartCount || Time.time >= next_update || forcedUpdate)
             {
-                next_update = Time.time + 2;
-                //print("update");
+                lastEditorPartCount = ePC;
+                next_update = Time.time + editorUpdateInterval;
+                forcedUpdate = false;
+
                 Part root = part;
                 while (root.parent != null)
                 {
@@ -149,9 +145,16 @@ namespace PsoptIntegrator
 
             foreach (string s in output)
             {
-                GUILayout.Label(s);
+                GUILayout.Label(s, GUILayout.ExpandWidth(true));
                 //print (s);
             }
+            GUILayout.BeginHorizontal();
+
+            if (GUILayout.Button("Update List", GUILayout.ExpandWidth(false)))
+            {
+                forcedUpdate = true;
+            }
+            GUILayout.EndHorizontal();
             GUILayout.EndVertical();
             GUI.DragWindow(new Rect(0, 0, 10000, 20));
         }
