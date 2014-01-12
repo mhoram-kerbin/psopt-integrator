@@ -48,9 +48,7 @@ namespace PsoptIntegrator
         System.Text.RegularExpressions.Regex zero_mass_part_regex = new System.Text.RegularExpressions.Regex
             ("^(?:FTX-2 External Fuel Duct|EAS-4 Strut Connector|Octagonal Strut|Cubic Octagonal Strut)$");
 
-        /// <summary>
         /// Called when the part is started by Unity.
-        /// </summary>
         public override void OnStart(StartState state)
         {
             if (state == StartState.Editor)
@@ -61,6 +59,7 @@ namespace PsoptIntegrator
                 print("OnStart PI in editor");
                 if (part.parent != null)
                 {
+                    upd();
                     oea();
                 }
             }
@@ -69,15 +68,51 @@ namespace PsoptIntegrator
                 print("OnStart PI not in editor");
             }
         }
+        
+        public void oea()
+        {
+            enable_window();
+        }
 
-        private void oede()
+        public void oed()
         {
             disable_window();
         }
 
-        public void oea()
+        public void oede()
         {
-            enable_window();
+            disable_window();
+        }
+
+        private void myfun3(Part data)
+        {
+            upd();
+        }
+
+        private void myfun2(GameEvents.FromToAction<ControlTypes, ControlTypes> data)
+        {
+            if(data.from.Equals(ControlTypes.EDITOR_UI))
+            {
+                print("fits");
+            }
+            if (data.from.ToString() == "THROTTLE, STAGING, CAMERACONTROLS")
+            {
+                upd();
+            }
+            else
+            {
+                print("from: " + data.from);
+            }
+        }
+
+        private void myfun(GameEvents.HostTargetAction<Part, Part> data)
+        {
+            upd();
+        }
+
+        private void upd()
+        {
+            print("update necessary");
         }
 
         private void enable_window()
@@ -88,7 +123,22 @@ namespace PsoptIntegrator
                 window_live = true;
 
                 RenderingManager.AddToPostDrawQueue(3, new Callback(showWindow));
+                start_event_listening();
             }
+        }
+
+        void start_event_listening()
+        {
+            GameEvents.onPartAttach.Add(myfun);
+            GameEvents.onPartRemove.Add(myfun);
+            GameEvents.onInputLocksModified.Add(myfun2);
+            GameEvents.onPartActionUIDismiss.Add(myfun3);
+            GameEvents.onGameSceneLoadRequested.Add(gslra);
+        }
+
+        private void gslra(GameScenes data)
+        {
+            disable_window();
         }
 
         private void showWindow()
@@ -234,11 +284,6 @@ namespace PsoptIntegrator
             }
         }
 
-        public void oed()
-        {
-            disable_window();
-        }
-
         private void disable_window()
         {
             if (window_live)
@@ -246,7 +291,18 @@ namespace PsoptIntegrator
                 window_live = false;
                 print("disable window");
                 RenderingManager.RemoveFromPostDrawQueue(3, new Callback(showWindow));
+                stop_event_listening();
             }
+        }
+
+        private void stop_event_listening()
+        {
+            GameEvents.onPartAttach.Remove(myfun);
+            GameEvents.onPartRemove.Remove(myfun);
+            GameEvents.onInputLocksModified.Remove(myfun2);
+            GameEvents.onPartActionUIDismiss.Remove(myfun3);
+            GameEvents.onGameSceneLoadRequested.Remove(gslra);
+
         }
     }
 
