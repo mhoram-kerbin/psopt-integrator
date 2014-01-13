@@ -33,7 +33,6 @@ namespace PsoptIntegrator
     public class PsoptIntegrator : PartModule
     {
         private bool window_live = false;
-        private float next_update = 0.0f;
         private Rect windowPos = new Rect(Screen.width / 2, Screen.height / 8, 500, 100);
         private List<string> output = new List<string>();
         private List<float> stage_mass = new List<float>();
@@ -41,9 +40,7 @@ namespace PsoptIntegrator
         private List<float> stage_thrustsum = new List<float>();
         private List<float> stage_thrustisp1atmsum = new List<float>();
         private List<float> stage_thrustispvacsum = new List<float>();
-        private int lastEditorPartCount = -1;
-        private float editorUpdateInterval = 20;
-        private bool forcedUpdate = false;
+        private bool force_update = false;
 
         System.Text.RegularExpressions.Regex zero_mass_part_regex = new System.Text.RegularExpressions.Regex
             ("^(?:FTX-2 External Fuel Duct|EAS-4 Strut Connector|Octagonal Strut|Cubic Octagonal Strut)$");
@@ -59,8 +56,8 @@ namespace PsoptIntegrator
                 print("OnStart PI in editor");
                 if (part.parent != null)
                 {
-                    upd();
                     oea();
+                    upd();
                 }
             }
             else
@@ -112,7 +109,41 @@ namespace PsoptIntegrator
 
         private void upd()
         {
+            force_update = true;
             print("update necessary");
+        }
+
+        private void do_update()
+        {
+            Part root = part;
+            while (root.parent != null)
+            {
+                root = root.parent;
+            }
+            output.Clear();
+            stage_mass.Clear();
+            stage_resource_mass.Clear();
+            stage_thrustisp1atmsum.Clear();
+            stage_thrustispvacsum.Clear();
+            stage_thrustsum.Clear();
+
+            UpdateParts(root, 0);
+            output.Insert(0, " Stages : " + stage_mass.Count);
+            float mass_sum = 0;
+            for (int st = 0; st < stage_mass.Count; st++)
+            {
+                string isp = "";
+                string thrust = "";
+                mass_sum += stage_mass[st];
+                if (st < stage_thrustsum.Count)
+                {
+                    thrust = " thrust = " + stage_thrustsum[st];
+                    isp = " ISP = " + (stage_thrustsum[st] / stage_thrustisp1atmsum[st]) + "/" + (stage_thrustsum[st] / stage_thrustispvacsum[st]);
+                }
+                output.Insert(1 + st, "Stage " + st + " fuel mass = " + stage_resource_mass[st] + " mass = " + mass_sum + thrust + isp);
+            }
+            //output.Insert(stage_mass.Count + 1, "");
+
         }
 
         private void enable_window()
@@ -124,6 +155,10 @@ namespace PsoptIntegrator
 
                 RenderingManager.AddToPostDrawQueue(3, new Callback(showWindow));
                 start_event_listening();
+            }
+            else
+            {
+                print("WINDOW LIVE");
             }
         }
 
@@ -156,41 +191,10 @@ namespace PsoptIntegrator
             GUIStyle mySty = new GUIStyle(GUI.skin.button);
             GUILayout.BeginVertical();
 
-            int ePC = EditorLogic.SortedShipList.Count;
-            if (ePC != lastEditorPartCount || Time.time >= next_update || forcedUpdate)
+            if (force_update)
             {
-                lastEditorPartCount = ePC;
-                next_update = Time.time + editorUpdateInterval;
-                forcedUpdate = false;
-
-                Part root = part;
-                while (root.parent != null)
-                {
-                    root = root.parent;
-                }
-                output.Clear();
-                stage_mass.Clear();
-                stage_resource_mass.Clear();
-                stage_thrustisp1atmsum.Clear();
-                stage_thrustispvacsum.Clear();
-                stage_thrustsum.Clear();
-
-                UpdateParts(root, 0);
-                output.Insert(0, " Stages : " + stage_mass.Count);
-                float mass_sum = 0;
-                for (int st = 0; st < stage_mass.Count; st++)
-                {
-                    string isp = "";
-                    string thrust = "";
-                    mass_sum += stage_mass[st];
-                    if (st < stage_thrustsum.Count)
-                    {
-                        thrust = " thrust = " + stage_thrustsum[st];
-                        isp = " ISP = " + (stage_thrustsum[st] / stage_thrustisp1atmsum[st]) + "/" + (stage_thrustsum[st] / stage_thrustispvacsum[st]);
-                    }
-                    output.Insert(1 + st, "Stage " + st + " fuel mass = " + stage_resource_mass[st] + " mass = " + mass_sum + thrust + isp);
-                }
-                //output.Insert(stage_mass.Count + 1, "");
+                force_update = false;
+                do_update();
             }
 
             foreach (string s in output)
@@ -202,7 +206,7 @@ namespace PsoptIntegrator
 
             if (GUILayout.Button("Update List", GUILayout.ExpandWidth(false)))
             {
-                forcedUpdate = true;
+                upd();
             }
             GUILayout.EndHorizontal();
             GUILayout.EndVertical();
@@ -292,6 +296,10 @@ namespace PsoptIntegrator
                 print("disable window");
                 RenderingManager.RemoveFromPostDrawQueue(3, new Callback(showWindow));
                 stop_event_listening();
+            }
+            else
+            {
+                print("WINDOW NOT LIVE");
             }
         }
 
