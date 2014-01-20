@@ -21,9 +21,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
-
+using System.Net.Sockets;
 
 namespace PsoptIntegrator
 {
@@ -208,9 +207,20 @@ namespace PsoptIntegrator
             {
                 upd();
             }
+            if (GUILayout.Button("Send Pipe Message", GUILayout.ExpandWidth(false)))
+            {
+                sendSocket();
+            }
+
             GUILayout.EndHorizontal();
             GUILayout.EndVertical();
             GUI.DragWindow(new Rect(0, 0, 10000, 20));
+        }
+
+        private void sendSocket()
+        {
+            Socket s = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+
         }
 
         private void UpdateParts(Part p, int stage)
